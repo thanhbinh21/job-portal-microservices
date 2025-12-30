@@ -33,6 +33,7 @@ export const registerUser = TryCatch(async (req, res, next) => {
     const file = req.file;
 
   }
+  
 
 
 });
