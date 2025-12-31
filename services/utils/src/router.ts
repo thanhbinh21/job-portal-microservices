@@ -1,16 +1,24 @@
-import express from 'express'
-import cloudinary from 'cloudinary'
-const router = express.Router()
+import express from "express";
+import cloudinary from "cloudinary";
+import e from "express";
+const router = express.Router();
 
-router.post("/upload", async(req, res) => {
-    try{
-       const {buffer, pulic_id} = req.body;
+router.post("/upload", async (req, res) => {
+  try {
+    const { buffer, public_id } = req.body;
+    if (public_id) {
+      await cloudinary.v2.uploader.destroy(public_id);
     }
-    
-    catch(err){
-        res.status(500).json({error: "Upload failed"})
-    }
-}
-);
+    const cloud = await cloudinary.v2.uploader.upload(buffer);
 
-export default router  
+    res.json({ url: cloud.secure_url, public_id: cloud.public_id });
+
+
+  } catch (err : any) {
+    res.status(500).json({
+        message: err.message
+    });
+  }
+});
+
+export default router;

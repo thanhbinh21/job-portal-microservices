@@ -9,7 +9,7 @@ async function initDb() {
     DO $$
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-            CREATE TYPE user_role AS ENUM ('jpbseeker', 'recruiter', 'admin');
+            CREATE TYPE user_role AS ENUM ('jobseeker', 'recruiter', 'admin');
         END IF;
     END
     $$;
@@ -25,7 +25,7 @@ async function initDb() {
         role user_role NOT NULL,
         bio TEXT,
         resume VARCHAR(255),
-        reasume_public_id VARCHAR(255),
+        resume_public_id VARCHAR(255),
         profile_picture VARCHAR(255),
         profile_picture_public_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
