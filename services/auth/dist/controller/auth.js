@@ -83,7 +83,7 @@ export const loginUser = TryCatch(async (req, res, next) => {
     if (!isPasswordValid) {
         throw new ErrorHandle(401, "Invalid email or password 2");
     }
-    userLogin.skills = userLogin.skills.filter((skill) => skill !== null);
+    userLogin.skills = userLogin.skills ? userLogin.skills.filter((skill) => skill !== null) : [];
     const token = jwt.sign({ userId: userLogin?.user_id }, //payload
     process.env.JWT_SEC, //secret key
     { expiresIn: "7d" } // date expiration
