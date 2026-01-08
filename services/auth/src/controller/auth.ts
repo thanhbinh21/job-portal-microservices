@@ -6,6 +6,8 @@ import { TryCatch } from "../utils/TryCatch.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import { forgotPasswordTemplate } from "../template.js";
+import { publishToTopic } from "../producer.js";
 
 dotenv.config();
 
@@ -36,6 +38,7 @@ export const registerUser = TryCatch(async (req, res, next) => {
     `;
     console.log("Insert result for recruiter:", result);
     registerUser = result[0];
+    
   } else if (role === "jobseeker") {
     const file = req.file;
     if (!file) {
@@ -109,7 +112,9 @@ export const loginUser = TryCatch(async (req, res, next) => {
   if (!isPasswordValid) {
     throw new ErrorHandle(401, "Invalid email or password 2");
   }
-  userLogin.skills = userLogin.skills ? userLogin.skills.filter((skill: string) => skill !== null) : [];
+  userLogin.skills = userLogin.skills
+    ? userLogin.skills.filter((skill: string) => skill !== null)
+    : [];
 
   const token = jwt.sign(
     { userId: userLogin?.user_id }, //payload
@@ -124,4 +129,45 @@ export const loginUser = TryCatch(async (req, res, next) => {
     userLogin,
     token,
   });
+});
+
+export const forgotPassword = TryCatch(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ErrorHandle(400, "Email is required");
+  }
+  const users = await sql`
+      SELECT user_id, email FROM users WHERE email = ${email}
+  `;
+
+  if (users.length === 0) {
+    return res.status(200).json({
+      message:
+        "If that email address is in our database, we will send you an email to reset your password.",
+    });
+  }
+  const user = users[0];
+
+  const resetToken = jwt.sign(
+    { email: user.email, type: "reset" },
+
+    process.env.JWT_SEC as string,
+    { expiresIn: "15m" }
+  );
+
+  const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+  const message = {
+    to: email,
+    subject: "Password Reset Request - Job DevVn",
+    html: forgotPasswordTemplate(resetLink),
+  };
+
+  publishToTopic("send-mail", message);
+
+  res.status(200).json({
+    message:
+      "If that email address is in our database, we will send you an email to reset your password.",
+  });
+  
 });

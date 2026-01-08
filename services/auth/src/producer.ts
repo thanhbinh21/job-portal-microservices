@@ -1,5 +1,6 @@
 import { Kafka, Producer, Admin } from "kafkajs";
 import dotenv from "dotenv";
+import e from "express";
 
 let producer: Producer;
 let admin: Admin;
@@ -50,5 +51,20 @@ export const publishToTopic = async (topic: string, message: any) => {
     console.log(`✅ Message published to topic ${topic}`);
   } catch (error) {
     console.error(`❌ Error publishing message to topic ${topic}:`, error);
+  }
+};
+
+export const disconnectKafka = async () => {
+  try {
+    if (producer) {
+      await producer.disconnect();
+      console.log("✅ Kafka Producer disconnected");
+    }
+    if (admin) {
+      await admin.disconnect();
+      console.log("✅ Kafka Admin disconnected");
+    } 
+  } catch (error) {
+    console.error("❌ Error disconnecting Kafka:", error);
   }
 };
