@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { forgotPasswordTemplate } from "../template.js";
 import { publishToTopic } from "../producer.js";
+import { redisClient } from "../index.js";
 
 dotenv.config();
 
@@ -38,7 +39,6 @@ export const registerUser = TryCatch(async (req, res, next) => {
     `;
     console.log("Insert result for recruiter:", result);
     registerUser = result[0];
-    
   } else if (role === "jobseeker") {
     const file = req.file;
     if (!file) {
@@ -157,17 +157,67 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
 
   const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
 
+  await redisClient.set(`resetPasswordToken:${email}`, resetToken, {
+    EX: 15 * 60, // 15 minutes
+  });
+
   const message = {
     to: email,
     subject: "Password Reset Request - Job DevVn",
     html: forgotPasswordTemplate(resetLink),
   };
 
-  publishToTopic("send-mail", message);
+  publishToTopic("send-mail", message).catch((err) => {
+    console.error("💀Faild to send email:", err);
+  });
 
   res.status(200).json({
     message:
       "If that email address is in our database, we will send you an email to reset your password.",
   });
-  
+});
+
+export const resetPassword = TryCatch(async (req, res, next) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
+  if (!token || !newPassword) {
+    throw new ErrorHandle(400, "Token and new password are required");
+  }
+  let payload: any;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SEC as string);
+  } catch (err) {
+    throw new ErrorHandle(400, "Invalid or expired token");
+  }
+  if (payload.type !== "reset") {
+    throw new ErrorHandle(400, "Invalid token type");
+  }
+
+  const storedToken = await redisClient.get(
+    `resetPasswordToken:${payload.email}`
+  );
+  if (storedToken !== token) {
+    throw new ErrorHandle(400, "Invalid or expired token");
+  }
+
+  const users = await sql`
+      SELECT user_id, email FROM users WHERE email = ${payload.email}
+  `;
+  if (users.length === 0) {
+    throw new ErrorHandle(400, "User not found");
+  }
+
+  const user = users[0];
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await sql`
+      UPDATE users 
+      SET password = ${hashedPassword} 
+      WHERE user_id = ${user.user_id}
+  `;
+  await redisClient.del(`resetPasswordToken:${payload.email}`);
+
+  res.status(200).json({
+    message: "Password has been reset successfully",
+  });
 });
