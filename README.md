@@ -116,7 +116,7 @@ Dự án đã được đóng gói (Containerized) để chạy trên môi trư�
 ---
 
 ### 👨‍💻 Author
-**[binhdevk4]** - *Project based on Small Town Coder Tutorial*
+**[binhdevk4]** 
 
 
 
